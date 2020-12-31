@@ -1,5 +1,6 @@
 package com.example.tcpservice;
 
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -7,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
@@ -24,26 +24,40 @@ public class TcpService {
         this.abort = new AtomicBoolean(false);
     }
 
+    @SneakyThrows
     public void abort() {
         this.abort.set(true);
+        String s = this.processMessageRedundant("*RST");
     }
 
     public void reset() {
         this.abort.set(false);
     }
 
-    synchronized Optional<String> processMessage(String message) throws IOException, ScpiDeviceAbortException {
-        if (!this.abort.get()) {
-            pw.println(message);
-            pw.flush();
-            if (!message.contains("?")) {
-                pw.println("*OPC?");
-                pw.flush();
-            }
-            return Optional.of(this.br.readLine());
+    synchronized String processMessageRedundant(String message) throws IOException, ScpiDeviceAbortException {
+        if (this.abort.get()) {
+            return peekMessage(message);
         } else {
-            throw new ScpiDeviceAbortException("Передача сообщения не удалась");
+            throw new ScpiDeviceAbortException("Устройство выдачи SCPI заблокировано!");
         }
+    }
+
+    synchronized String processMessageNormal(String message) throws IOException, ScpiDeviceAbortException {
+        if (!this.abort.get()) {
+            return peekMessage(message);
+        } else {
+            throw new ScpiDeviceAbortException("Устройство выдачи SCPI заблокировано!");
+        }
+    }
+
+    private String peekMessage(String message) throws IOException {
+        pw.println(message);
+        pw.flush();
+        if (!message.contains("?")) {
+            pw.println("*OPC?");
+            pw.flush();
+        }
+        return this.br.readLine();
     }
 
 

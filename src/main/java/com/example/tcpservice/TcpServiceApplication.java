@@ -5,7 +5,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @SpringBootApplication
@@ -36,12 +35,12 @@ public class TcpServiceApplication implements CommandLineRunner {
             }
             this.tcpService.abort();
             try {
-                Thread.sleep(500);
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            syn(0, 10000, "Abort_thread plus simple_thread3");
+            this.tcpService.reset();
+            syn(0, 1000, "Abort_thread plus simple_thread3");
         });
 
         CompletableFuture.runAsync(() -> {
@@ -50,31 +49,37 @@ public class TcpServiceApplication implements CommandLineRunner {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            syn(0, 10000, "simple_thread4");
+            syn(0, 1000, "simple_thread4");
         });
 
 
     }
 
     private void syn(int start, int stop, String message) {
-        this.tcpService.reset();
+        boolean error = false;
         for (int i = start; i < stop; i++) {
             try {
                 sender(i);
             } catch (ScpiDeviceAbortException e) {
-                System.out.println(e.getMessage());
+                System.err.println(e.getMessage());
+                error = true;
                 break;
             }
         }
-        System.out.println("Syn finished: " + message);
+        if (error) {
+            System.err.println("Syn finished with error: " + message);
+        } else {
+            System.out.println("Syn finished: " + message);
+
+        }
     }
 
     private synchronized void sender(int i) throws ScpiDeviceAbortException {
-        Optional<String> state1;
+        String state1;
         try {
-            this.tcpService.processMessage("state:switch4," + i % 37);
-            state1 = this.tcpService.processMessage("state:switch4?");
-            if (!state1.get().equals(String.valueOf(i % 37))) {
+            this.tcpService.processMessageNormal("state:switch4," + i % 37);
+            state1 = this.tcpService.processMessageNormal("state:switch4?");
+            if (!state1.equals(String.valueOf(i % 37))) {
                 System.out.println("Error assert");
             }
 
