@@ -49,9 +49,24 @@ public class TcpServiceApplication implements CommandLineRunner {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            syn(0, 1000, "simple_thread4");
+            syn(0, 4000, "simple_thread4");
         });
 
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(2300);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            for (int i = 0; i < 10; i++) {
+                try {
+                    Thread.sleep(300);
+                    System.out.println(this.tcpService.processMessageNormal("*IDN?"));
+                } catch (IOException | InterruptedException | ScpiDeviceAbortException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
 
     }
 
@@ -81,6 +96,8 @@ public class TcpServiceApplication implements CommandLineRunner {
             state1 = this.tcpService.processMessageNormal("state:switch4?");
             if (!state1.equals(String.valueOf(i % 37))) {
                 System.out.println("Error assert");
+            }else{
+                System.out.println("OK");
             }
 
         } catch (IOException e) {
